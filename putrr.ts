@@ -10,8 +10,29 @@ app.use((req, res, next) => {
 });
 let result = "";
 app.use(/\/v1\/messages/, async (req, res) => {
-  res.json(await runChat("js去重复"));
+  // 设置 SSE 必要的响应头
+  res.set({
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "Access-Control-Allow-Origin": "*",
+  });
+
+  res.flushHeaders(); // 强制发送头部，开始 SSE
+
+  // 客户端关闭连接时清理定时器
+  req.on("close", () => {
+    console.log("客户端断开连接");
+  });
+  await runChat(req.query?.text || req.body?.text || "你好", (type, data) => {
+    res.write(getSseData(type, data));
+    if (type === "done") {
+      res.end();
+    }
+  });
 });
+const getSseData = (type: any, data: any) =>
+  `event: ${type}\ndata: ${JSON.stringify({ text: data })}\n\n`;
 const getMessage = (result: string) => {
   return {
     id: Buffer.from(Date.now().toString()).toString("base64"),

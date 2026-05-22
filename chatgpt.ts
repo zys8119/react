@@ -4,7 +4,11 @@ puppeteer.use(StealthPlugin());
 let _browser = null as unknown as Awaited<ReturnType<typeof puppeteer.launch>>;
 let isConnect = false;
 let isChating = false;
-export async function runChat(message: string, is_connect?: boolean) {
+export async function runChat(
+  message: string,
+  callback?: (type: string, val?: any) => void,
+  is_connect?: boolean,
+) {
   if (is_connect) {
     await _browser?.disconnect?.();
   }
@@ -39,6 +43,7 @@ export async function runChat(message: string, is_connect?: boolean) {
         switch (data.type) {
           case "start":
             if (data.data === "[START]") {
+              callback?.("start");
               console.log("start");
               content = "";
             }
@@ -46,6 +51,7 @@ export async function runChat(message: string, is_connect?: boolean) {
           case "done":
             if (data.data === "[DONE]") {
               console.log("done");
+              callback?.("done");
               await _browser.disconnect();
               isChating = false;
               r(content);
@@ -59,6 +65,7 @@ export async function runChat(message: string, is_connect?: boolean) {
           default:
             if (typeof data.v === "string") {
               console.log(data.v);
+              callback?.("generating", data.v);
               content += data.v;
             } else if (data.o === "patch" && Array.isArray(data.v)) {
               const v = data.v
@@ -69,6 +76,7 @@ export async function runChat(message: string, is_connect?: boolean) {
                 .map((item: any) => item.v)
                 .join("\n");
               console.log(v);
+              callback?.("generating", v);
               content += v;
             }
             break;
@@ -163,7 +171,7 @@ export async function runChat(message: string, is_connect?: boolean) {
       await page.click("#composer-submit-button");
     } catch (err) {
       isChating = false;
-      r(await runChat(message, true));
+      r(await runChat(message, callback, true));
     }
   })
     .catch(async (err) => {
