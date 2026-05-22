@@ -10,28 +10,7 @@ app.use((req, res, next) => {
 });
 let result = "";
 app.use(/\/v1\/messages/, async (req, res) => {
-  const system = req.body.system.map((e: any) => e.text).join("\n");
-  const info = req.body.messages
-    .filter((e: any) => e.role === "user")
-    .reduce(
-      (a: any, b: any) =>
-        a.concat(
-          typeof b.content === "string" ? [{ text: b.content }] : b.content,
-        ),
-      [],
-    )
-    .slice(-4)
-    .map((e: any) => e.text)
-    .join("");
-  if (info) {
-    result = ((await runChat(info)) as any) || result || "";
-    try {
-      return res.json(getMessage(result));
-    } catch (err) {
-      return res.json(getMessage(result));
-    }
-  }
-  // return res.json(getMessage(result));
+  res.json(await runChat("js去重复"));
 });
 const getMessage = (result: string) => {
   return {
