@@ -12,6 +12,7 @@
   "packageManager": "pnpm@10.32.1",
   "dependencies": {
     "@types/express": "^5.0.6",
+    "@types/lodash": "^4.17.24",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vueuse/core": "^14.3.0",
     "axios": "^1.16.1",
@@ -19,6 +20,8 @@
     "express": "^5.2.1",
     "hls.js": "^1.6.16",
     "less": "^4.6.4",
+    "loadsh": "^0.0.4",
+    "lodash": "^4.18.1",
     "mysql2": "^3.22.3",
     "opencv.js": "^1.2.1",
     "puppeteer": "^24.40.0",

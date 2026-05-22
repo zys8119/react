@@ -24,11 +24,12 @@ export async function runChat(message: string) {
   return Promise.resolve()
     .then(async () => {
       return new Promise(async (r, j) => {
-        await (async function name(params: type) {
+        await (async function name() {
           if (isChating) {
+            return await name();
           }
         })();
-
+        isChating = true;
         const pages = await _browser.pages();
         const page = (await pages[0]) || (await _browser.newPage());
         // 页面里可调用 window.sendToNode()
@@ -48,6 +49,7 @@ export async function runChat(message: string) {
               if (data.data === "[DONE]") {
                 console.log("done");
                 await _browser.disconnect();
+                isChating = false;
                 r(content);
               }
               break;

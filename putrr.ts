@@ -1,15 +1,30 @@
 import express from "express";
 import dayjs from "dayjs";
+import { debounce } from "lodash";
 import { runChat } from "./chatgpt";
-// (async () => {
-//   await runChat("js去重复");
-// })();
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-app.use(/\/v1\/messages/, async (req, res) => {
+app.use((req, res, next) => {
   console.log(req.method, req.url, Date.now());
+  next();
+});
+const useMessagesHandle = debounce(async (req, res) => {
+  const system = req.body.system.map((e: any) => e.text).join("\n");
+  const messages = req.body.messages
+    .map((e: any) => {
+      return `${e.role}\n${((content) => {
+        const queryMessages = (
+          typeof content === "string" ? [{ text: content }] : content
+        )
+          .map((e: any) => e.text)
+          .join("\n\n");
+        return queryMessages;
+      })(e.content)}`;
+    })
+    .join("\n");
+  // console.log(`${system}\n${messages}`);
+  console.log(333);
   // await runChat("你好");
   res.json(getMessage(""));
   // const content = req.body.messages.pop().content;
@@ -24,6 +39,11 @@ app.use(/\/v1\/messages/, async (req, res) => {
   // } catch (err) {
   //   res.json(getMessage(""));
   // }
+});
+app.use(/\/v1\/messages/, (req, res) => {
+  const result = useMessagesHandle(req, res);
+  console.log(result);
+  res.json(getMessage(""));
 });
 const getMessage = (result: string) => {
   return {
