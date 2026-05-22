@@ -1,6 +1,5 @@
 import express from "express";
 import dayjs from "dayjs";
-import { debounce } from "lodash";
 import { runChat } from "./chatgpt";
 const app = express();
 app.use(express.json());
@@ -9,41 +8,30 @@ app.use((req, res, next) => {
   console.log(req.method, req.url, Date.now());
   next();
 });
-const useMessagesHandle = debounce(async (req, res) => {
+let result = "";
+app.use(/\/v1\/messages/, async (req, res) => {
   const system = req.body.system.map((e: any) => e.text).join("\n");
-  const messages = req.body.messages
-    .map((e: any) => {
-      return `${e.role}\n${((content) => {
-        const queryMessages = (
-          typeof content === "string" ? [{ text: content }] : content
-        )
-          .map((e: any) => e.text)
-          .join("\n\n");
-        return queryMessages;
-      })(e.content)}`;
-    })
-    .join("\n");
-  // console.log(`${system}\n${messages}`);
-  console.log(333);
-  // await runChat("你好");
-  res.json(getMessage(""));
-  // const content = req.body.messages.pop().content;
-  // const queryMessages = (
-  //   typeof content === "string" ? [{ text: content }] : content
-  // )
-  //   .map((e: any) => e.text)
-  //   .join("\n\n");
-  // //.replace('[SUGGESTION MODE: Suggest what the user might naturally type next into Claude Code.]');
-  // try {
-  //   res.json(getMessage((await runChat(queryMessages)) as string));
-  // } catch (err) {
-  //   res.json(getMessage(""));
-  // }
-});
-app.use(/\/v1\/messages/, (req, res) => {
-  const result = useMessagesHandle(req, res);
-  console.log(result);
-  res.json(getMessage(""));
+  const info = req.body.messages
+    .filter((e: any) => e.role === "user")
+    .reduce(
+      (a: any, b: any) =>
+        a.concat(
+          typeof b.content === "string" ? [{ text: b.content }] : b.content,
+        ),
+      [],
+    )
+    .slice(-4)
+    .map((e: any) => e.text)
+    .join("");
+  if (info) {
+    result = ((await runChat(info)) as any) || result || "";
+    try {
+      return res.json(getMessage(result));
+    } catch (err) {
+      return res.json(getMessage(result));
+    }
+  }
+  // return res.json(getMessage(result));
 });
 const getMessage = (result: string) => {
   return {
@@ -97,32 +85,6 @@ const getMessage = (result: string) => {
     },
   };
 };
-// app.get("/", (req, res) => {
-//   // 设置 SSE 必要的响应头
-//   res.set({
-//     "Content-Type": "text/event-stream",
-//     "Cache-Control": "no-cache",
-//     Connection: "keep-alive",
-//     "Access-Control-Allow-Origin": "*",
-//   });
-
-//   res.flushHeaders(); // 强制发送头部，开始 SSE
-
-//   let count = 0;
-
-//   // 每秒发送一条消息
-//   const interval = setInterval(() => {
-//     count++;
-//     const data = { msg: `消息 ${count}`, timestamp: Date.now() };
-//     res.write(`data: ${JSON.stringify(data)}\n\n`);
-//   }, 1000);
-
-//   // 客户端关闭连接时清理定时器
-//   req.on("close", () => {
-//     clearInterval(interval);
-//     console.log("客户端断开连接");
-//   });
-// });
 
 app.listen(8001, () => {
   console.log("Server is running on port 8001");

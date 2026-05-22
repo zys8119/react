@@ -1,12 +1,14 @@
-// import puppeteer from "puppeteer";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 puppeteer.use(StealthPlugin());
 let _browser = null as unknown as Awaited<ReturnType<typeof puppeteer.launch>>;
 let isConnect = false;
 let isChating = false;
-export async function runChat(message: string) {
-  if (!isConnect) {
+export async function runChat(message: string, is_connect?: boolean) {
+  if (is_connect) {
+    await _browser?.disconnect?.();
+  }
+  if (is_connect || !isConnect) {
     _browser = await puppeteer.connect({
       browserURL: "http://127.0.0.1:9222",
       defaultViewport: {
@@ -14,160 +16,160 @@ export async function runChat(message: string) {
         height: 0,
       },
     });
-    _browser.once("error", async () => {
-      isConnect = false;
-      await _browser.disconnect();
-    });
     isConnect = true;
   }
 
-  return Promise.resolve()
-    .then(async () => {
-      return new Promise(async (r, j) => {
-        await (async function name() {
-          if (isChating) {
-            return await name();
-          }
-        })();
-        isChating = true;
-        const pages = await _browser.pages();
-        const page = (await pages[0]) || (await _browser.newPage());
-        // 页面里可调用 window.sendToNode()
-        const isSendToNodeExposed = await page.evaluate(() => {
-          return !!window.isSendToNodeExposed;
-        });
-        let content = "";
-        await page.exposeFunction("sendToNode", async (data: any) => {
-          switch (data.type) {
-            case "start":
-              if (data.data === "[START]") {
-                console.log("start");
-                content = "";
-              }
-              break;
-            case "done":
-              if (data.data === "[DONE]") {
-                console.log("done");
-                await _browser.disconnect();
-                isChating = false;
-                r(content);
-              }
-              break;
-            case "other":
-              // if (data.data === "[DONE]") {
-              //   console.log("done");
-              // }
-              break;
-            default:
-              if (typeof data.v === "string") {
-                console.log(data.v);
-                content += data.v;
-              } else if (data.o === "patch" && Array.isArray(data.v)) {
-                const v = data.v
-                  .filter(
-                    (e: any, index: number) =>
-                      typeof e.v === "string" && e.o === "append",
-                  )
-                  .map((item: any) => item.v)
-                  .join("\n");
-                console.log(v);
-                content += v;
-              }
-              break;
-          }
-        });
-        if (!isSendToNodeExposed) {
-          await page.evaluate(() => {
-            const originalFetch = window.fetch;
+  return new Promise(async (r, j) => {
+    try {
+      await (async function name() {
+        if (isChating) {
+          console.log(isChating);
+          return await name();
+        }
+      })();
+      isChating = true;
+      const pages = await _browser.pages();
+      const page = pages[pages.length - 1];
+      // 页面里可调用 window.sendToNode()
+      const isSendToNodeExposed = await page.evaluate(() => {
+        return !!window.isSendToNodeExposed;
+      });
+      let content = "";
+      await page.exposeFunction("sendToNode", async (data: any) => {
+        switch (data.type) {
+          case "start":
+            if (data.data === "[START]") {
+              console.log("start");
+              content = "";
+            }
+            break;
+          case "done":
+            if (data.data === "[DONE]") {
+              console.log("done");
+              await _browser.disconnect();
+              isChating = false;
+              r(content);
+            }
+            break;
+          case "other":
+            // if (data.data === "[DONE]") {
+            //   console.log("done");
+            // }
+            break;
+          default:
+            if (typeof data.v === "string") {
+              console.log(data.v);
+              content += data.v;
+            } else if (data.o === "patch" && Array.isArray(data.v)) {
+              const v = data.v
+                .filter(
+                  (e: any, index: number) =>
+                    typeof e.v === "string" && e.o === "append",
+                )
+                .map((item: any) => item.v)
+                .join("\n");
+              console.log(v);
+              content += v;
+            }
+            break;
+        }
+      });
+      if (!isSendToNodeExposed) {
+        await page.evaluate(() => {
+          const originalFetch = window.fetch;
 
-            window.fetch = async (...args) => {
-              const response = await originalFetch(...args);
+          window.fetch = async (...args) => {
+            const response = await originalFetch(...args);
 
-              const url = args[0];
+            const url = args[0];
 
-              if (typeof url === "string" && url.includes("/conversation")) {
-                const cloned = response.clone() as any;
+            if (typeof url === "string" && url.includes("/conversation")) {
+              const cloned = response.clone() as any;
 
-                const reader = cloned.body.getReader();
-                const decoder = new TextDecoder();
+              const reader = cloned.body.getReader();
+              const decoder = new TextDecoder();
 
-                (async () => {
-                  window.sendToNode({
-                    type: "start",
-                    data: "[START]",
-                  });
-                  while (true) {
-                    const { done, value } = await reader.read();
+              (async () => {
+                window.sendToNode({
+                  type: "start",
+                  data: "[START]",
+                });
+                while (true) {
+                  const { done, value } = await reader.read();
 
-                    if (done) break;
-                    const sse = decoder.decode(value);
-                    const lines = sse.split("\n");
+                  if (done) break;
+                  const sse = decoder.decode(value);
+                  const lines = sse.split("\n");
 
-                    for (const line of lines) {
-                      if (line.startsWith("data:")) {
-                        const jsonText = line.slice(5).trim();
+                  for (const line of lines) {
+                    if (line.startsWith("data:")) {
+                      const jsonText = line.slice(5).trim();
 
-                        try {
-                          const obj = JSON.parse(jsonText);
-                          window.sendToNode(obj);
-                        } catch (err) {
-                          window.sendToNode({
-                            type: "other",
-                            data: jsonText,
-                          });
-                          // console.error("json parse error", err);
-                        }
+                      try {
+                        const obj = JSON.parse(jsonText);
+                        window.sendToNode(obj);
+                      } catch (err) {
+                        window.sendToNode({
+                          type: "other",
+                          data: jsonText,
+                        });
+                        // console.error("json parse error", err);
                       }
                     }
                   }
-                  window.sendToNode({
-                    type: "done",
-                    data: "[DONE]",
-                  });
-                })();
-              }
-
-              return response;
-            };
-          });
-          await page.evaluate(() => {
-            window.isSendToNodeExposed = true;
-          });
-        }
-        const waitForSelector = async (
-          selector: string,
-          hasContent?: boolean,
-        ) => {
-          return await page.evaluate(
-            async function name(selector, hasContent) {
-              const el: any = document.querySelector(
-                selector,
-              ) as HTMLDivElement;
-              if (!el || (hasContent && !el.innerText.trim())) {
-                return await new Promise((r) => {
-                  requestAnimationFrame(async () => {
-                    await name(selector, hasContent);
-                    r(true);
-                  });
+                }
+                window.sendToNode({
+                  type: "done",
+                  data: "[DONE]",
                 });
-              }
-            },
-            selector,
-            hasContent,
-          );
-        };
-        await waitForSelector("#prompt-textarea");
-        await page.click("#prompt-textarea", {
-          clickCount: 3,
+              })();
+            }
+
+            return response;
+          };
         });
-
-        await page.keyboard.press("Backspace");
-
-        await page.type("#prompt-textarea", message);
-        await page.click("#composer-submit-button");
+        await page.evaluate(() => {
+          window.isSendToNodeExposed = true;
+        });
+      }
+      const waitForSelector = async (
+        selector: string,
+        hasContent?: boolean,
+      ) => {
+        return await page.evaluate(
+          async function name(selector, hasContent) {
+            const el: any = document.querySelector(selector) as HTMLDivElement;
+            if (!el || (hasContent && !el.innerText.trim())) {
+              return await new Promise((r) => {
+                requestAnimationFrame(async () => {
+                  await name(selector, hasContent);
+                  r(true);
+                });
+              });
+            }
+          },
+          selector,
+          hasContent,
+        );
+      };
+      await waitForSelector("#prompt-textarea");
+      await page.click("#prompt-textarea", {
+        clickCount: 3,
       });
+
+      await page.keyboard.press("Backspace");
+
+      await page.type("#prompt-textarea", message);
+      await page.click("#composer-submit-button");
+    } catch (err) {
+      isChating = false;
+      r(await runChat(message, true));
+    }
+  })
+    .catch(async (err) => {
+      // console.error(err.message);
+      // console.error(err);
     })
-    .catch(console.error)
     .finally(async () => {
       // await _browser.close();
     });
