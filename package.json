@@ -1,0 +1,42 @@
+{
+  "name": "react",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.32.1",
+  "dependencies": {
+    "@types/express": "^5.0.6",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vueuse/core": "^14.3.0",
+    "axios": "^1.16.1",
+    "dayjs": "^1.11.20",
+    "express": "^5.2.1",
+    "hls.js": "^1.6.16",
+    "less": "^4.6.4",
+    "mysql2": "^3.22.3",
+    "opencv.js": "^1.2.1",
+    "puppeteer": "^24.40.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.14.0",
+    "tab-test": "0.0.1-test",
+    "unocss": "^66.6.7",
+    "unplugin-auto-import": "^21.0.0",
+    "unplugin-vue-components": "^32.0.0",
+    "vite": "^8.0.3",
+    "vue": "^3.5.31",
+    "wechat-pay-nodejs": "^0.2.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3"
+  }
+}
